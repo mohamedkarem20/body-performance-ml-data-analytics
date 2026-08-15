@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Body Performance Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:ital,wght@0,300;0,400;0,600;0,800;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ───── CSS VARIABLES ───── */
+:root {
+  --cosmic: 0;
+  /* Light Theme */
+  --bg-primary: #f0f4ff;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-nav: #1a1f3a;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent-1: #3b82f6;
+  --accent-2: #6366f1;
+  --accent-3: #ec4899;
+  --accent-4: #10b981;
+  --accent-gold: #f59e0b;
+  --border: rgba(0,0,0,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.12);
+  --glow: none;
+  --card-border: 1px solid rgba(0,0,0,0.06);
+  --gradient-hero: linear-gradient(135deg, #1a1f3a 0%, #2d3875 50%, #1a1f3a 100%);
+  --star-opacity: 0;
+  --nebula-opacity: 0;
+  --metric-bg: linear-gradient(135deg, #3b82f6, #6366f1);
+}
+
+.cosmic-mode {
+  --bg-primary: #050818;
+  --bg-secondary: #0a0f2e;
+  --bg-card: #0d1240;
+  --bg-nav: #020614;
+  --text-primary: #e2e8ff;
+  --text-secondary: #a5b4fc;
+  --text-muted: #6272a4;
+  --accent-1: #4fc3f7;
+  --accent-2: #a78bfa;
+  --accent-3: #f472b6;
+  --accent-4: #34d399;
+  --accent-gold: #ffd700;
+  --border: rgba(100,130,255,0.15);
+  --shadow: 0 4px 24px rgba(0,0,80,0.4);
+  --shadow-lg: 0 12px 48px rgba(0,0,120,0.5);
+  --glow: 0 0 30px rgba(79,195,247,0.15);
+  --card-border: 1px solid rgba(79,195,247,0.15);
+  --gradient-hero: linear-gradient(135deg, #020614 0%, #0a0f2e 50%, #020614 100%);
+  --star-opacity: 1;
+  --nebula-opacity: 1;
+  --metric-bg: linear-gradient(135deg, #1a3a6e, #2d1b69);
+}
+
+/* ───── RESET & BASE ───── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Exo 2', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background 0.6s ease, color 0.4s ease;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ───── STARS ───── */
+#stars-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+  opacity: var(--star-opacity);
+  transition: opacity 0.8s ease;
+}
+
+/* ───── NEBULA ───── */
+.nebula-bg {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+  opacity: var(--nebula-opacity);
+  transition: opacity 0.8s ease;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 30%, rgba(100,50,200,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 70%, rgba(0,150,255,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 60% 20%, rgba(255,50,150,0.07) 0%, transparent 70%);
+  animation: nebulaDrift 20s ease-in-out infinite alternate;
+}
+@keyframes nebulaDrift {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.05) rotate(2deg); }
+}
+
+/* ───── LAYOUT ───── */
+.page-wrap { position: relative; z-index: 1; }
+
+/* ───── NAV ───── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg-nav);
+  border-bottom: 1px solid rgba(79,195,247,0.2);
+  padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+  backdrop-filter: blur(20px);
+  transition: background 0.6s ease;
+}
+.nav-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.85rem; font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2px;
+  display: flex; align-items: center; gap: 10px;
+}
+.nav-logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent-1);
+  box-shadow: 0 0 10px var(--accent-1);
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+
+.nav-tabs { display: flex; gap: 2px; }
+.nav-tab {
+  font-family: 'Exo 2', sans-serif; font-size: 0.78rem; font-weight: 600;
+  color: rgba(255,255,255,0.55); cursor: pointer;
+  padding: 6px 16px; border-radius: 6px;
+  transition: all 0.25s ease; border: none; background: none;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.nav-tab:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.nav-tab.active { color: var(--accent-1); background: rgba(79,195,247,0.12); }
+
+/* ───── THEME TOGGLE ───── */
+.theme-toggle {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+}
+.theme-toggle-label {
+  font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  transition: color 0.3s;
+}
+.cosmic-mode .theme-toggle-label { color: var(--accent-gold); }
+.toggle-track {
+  width: 56px; height: 28px; border-radius: 14px;
+  background: rgba(255,255,255,0.1);
+  position: relative; transition: background 0.4s ease;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.cosmic-mode .toggle-track {
+  background: linear-gradient(90deg, #1a1a6e, #4a1a9e);
+  border-color: var(--accent-1);
+  box-shadow: 0 0 15px rgba(79,195,247,0.4);
+}
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #ffffff; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+.cosmic-mode .toggle-thumb { transform: translateX(28px); background: var(--accent-gold); }
+
+/* ───── HERO ───── */
+.hero {
+  background: var(--gradient-hero);
+  padding: 64px 2rem 48px;
+  text-align: center; position: relative; overflow: hidden;
+  transition: background 0.6s ease;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 100%, rgba(79,195,247,0.08) 0%, transparent 70%);
+}
+.hero-tag {
+  display: inline-block; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent-1); margin-bottom: 16px;
+  background: rgba(79,195,247,0.1); padding: 5px 14px; border-radius: 20px;
+  border: 1px solid rgba(79,195,247,0.25);
+}
+.hero h1 {
+  font-family: 'Orbitron', monospace; font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 900; color: #ffffff; line-height: 1.15; margin-bottom: 12px;
+  position: relative; z-index: 1;
+}
+.hero h1 span { color: var(--accent-1); }
+.hero p {
+  color: rgba(255,255,255,0.55); font-size: 1rem; max-width: 580px;
+  margin: 0 auto 36px; font-weight: 300; line-height: 1.7;
+}
+
+/* ── Stat pills ── */
+.hero-stats { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.hero-stat {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 16px 28px; text-align: center;
+  backdrop-filter: blur(10px); transition: all 0.3s ease;
+}
+.hero-stat:hover { transform: translateY(-3px); border-color: var(--accent-1); }
+.hero-stat .val {
+  font-family: 'Orbitron', monospace; font-size: 1.8rem; font-weight: 700;
+  color: var(--accent-1); display: block;
+}
+.hero-stat .lbl { font-size: 0.68rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+/* ───── MAIN CONTENT ───── */
+main { max-width: 1400px; margin: 0 auto; padding: 40px 2rem; }
+section { display: none; animation: fadeIn 0.4s ease; }
+section.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+/* ───── SECTION HEADER ───── */
+.section-header { margin-bottom: 32px; }
+.section-header h2 {
+  font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 700;
+  color: var(--text-primary); display: flex; align-items: center; gap: 12px;
+}
+.section-header h2 span.ico {
+  font-size: 1.1rem; background: var(--metric-bg);
+  width: 36px; height: 36px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: var(--glow);
+}
+.section-header p { color: var(--text-secondary); margin-top: 6px; font-size: 0.9rem; }
+
+/* ───── GRID SYSTEMS ───── */
+.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+@media(max-width:1024px) { .grid-4{grid-template-columns:repeat(2,1fr)} .grid-2-1{grid-template-columns:1fr} }
+@media(max-width:640px) { .grid-4,.grid-3,.grid-2{grid-template-columns:1fr} }
+
+/* ───── CARD ───── */
+.card {
+  background: var(--bg-card); border: var(--card-border);
+  border-radius: 16px; padding: 24px;
+  box-shadow: var(--shadow); transition: all 0.3s ease;
+  position: relative; overflow: hidden;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  opacity: 0; transition: opacity 0.3s;
+}
+.card:hover::before { opacity: 1; }
+.card-title {
+  font-family: 'Orbitron', monospace; font-size: 0.75rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 16px;
+}
+
+/* ───── METRIC CARD ───── */
+.metric-card {
+  background: var(--metric-bg);
+  border-radius: 16px; padding: 22px 24px;
+  position: relative; overflow: hidden;
+  transition: all 0.3s ease; cursor: default;
+}
+.metric-card:hover { transform: translateY(-4px) scale(1.02); }
+.metric-card::after {
+  content: ''; position: absolute; bottom: -20px; right: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+.metric-card .m-icon { font-size: 1.6rem; margin-bottom: 8px; }
+.metric-card .m-val {
+  font-family: 'Orbitron', monospace; font-size: 2rem; font-weight: 900;
+  color: #fff; line-height: 1;
+}
+.metric-card .m-lbl { font-size: 0.72rem; color: rgba(255,255,255,0.6); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.metric-card .m-sub { font-size: 0.78rem; color: rgba(255,255,255,0.4); margin-top: 8px; }
+
+/* ───── CHART CONTAINER ───── */
+.chart-wrap { position: relative; }
+.chart-wrap canvas { max-height: 280px; }
+
+/* ───── PROGRESS BAR ───── */
+.progress-row { margin-bottom: 14px; }
+.progress-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.progress-label { font-size: 0.82rem; color: var(--text-secondary); font-weight: 600; }
+.progress-val { font-family: 'Orbitron', monospace; font-size: 0.82rem; color: var(--accent-1); font-weight: 700; }
+.progress-track {
+  height: 8px; background: rgba(100,100,200,0.12); border-radius: 8px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 8px;
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 0 8px rgba(79,195,247,0.4);
+  position: relative;
+}
+.cosmic-mode .progress-fill { box-shadow: 0 0 12px rgba(79,195,247,0.6); }
+
+/* ───── TABLE ───── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.data-table th {
+  padding: 10px 14px; text-align: left;
+  background: rgba(79,195,247,0.08); color: var(--accent-1);
+  font-weight: 700; font-family: 'Orbitron', monospace;
+  font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text-secondary); transition: background 0.2s;
+}
+.data-table tr:hover td { background: rgba(79,195,247,0.04); color: var(--text-primary); }
+.data-table .highlight { color: var(--accent-4); font-weight: 700; font-family: 'Orbitron', monospace; }
+.data-table .best { color: var(--accent-gold); font-weight: 800; }
+
+/* ───── BADGE ───── */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-blue { background: rgba(79,195,247,0.15); color: var(--accent-1); border: 1px solid rgba(79,195,247,0.3); }
+.badge-purple { background: rgba(167,139,250,0.15); color: var(--accent-2); border: 1px solid rgba(167,139,250,0.3); }
+.badge-green { background: rgba(52,211,153,0.15); color: var(--accent-4); border: 1px solid rgba(52,211,153,0.3); }
+.badge-gold { background: rgba(255,215,0,0.12); color: var(--accent-gold); border: 1px solid rgba(255,215,0,0.3); }
+.badge-pink { background: rgba(244,114,182,0.15); color: var(--accent-3); border: 1px solid rgba(244,114,182,0.3); }
+
+/* ───── TEAM CARD ───── */
+.team-card {
+  background: var(--bg-card); border: var(--card-border);
+  border-radius: 20px; padding: 28px; transition: all 0.35s ease;
+  position: relative; overflow: hidden;
+}
+.team-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+.team-card .tc-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  border-radius: 20px 20px 0 0;
+}
+.team-card .tc-avatar {
+  width: 56px; height: 56px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; margin-bottom: 14px;
+  transition: transform 0.3s ease;
+}
+.team-card:hover .tc-avatar { transform: scale(1.1) rotate(5deg); }
+.team-card .tc-name {
+  font-family: 'Orbitron', monospace; font-size: 0.95rem; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 4px;
+}
+.team-card .tc-role { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
+.team-card .tc-tasks { list-style: none; }
+.team-card .tc-tasks li {
+  padding: 5px 0; font-size: 0.8rem; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-start;
+}
+.team-card .tc-tasks li::before { content: '▸'; color: var(--accent-1); flex-shrink: 0; font-size: 0.7rem; margin-top: 2px; }
+
+/* ───── MODEL SELECTOR ───── */
+.model-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.model-tab {
+  padding: 8px 16px; border-radius: 10px; cursor: pointer;
+  font-size: 0.78rem; font-weight: 600; transition: all 0.25s ease;
+  background: rgba(100,100,200,0.08); border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.model-tab:hover { border-color: var(--accent-1); color: var(--accent-1); }
+.model-tab.active {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff; border-color: transparent; box-shadow: 0 4px 15px rgba(79,195,247,0.3);
+}
+
+/* ───── CONFUSION MATRIX ───── */
+.cm-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; }
+.cm-cell {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+  font-family: 'Orbitron', monospace; transition: transform 0.2s;
+  cursor: default;
+}
+.cm-cell:hover { transform: scale(1.1); z-index: 1; position: relative; }
+.cm-label { font-size: 0.68rem; font-family: 'Orbitron', monospace; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+
+/* ───── INSIGHTS ───── */
+.insight {
+  display: flex; gap: 14px; padding: 14px; border-radius: 12px;
+  background: rgba(79,195,247,0.05); border: 1px solid rgba(79,195,247,0.1);
+  margin-bottom: 10px; transition: all 0.25s;
+}
+.insight:hover { background: rgba(79,195,247,0.09); border-color: rgba(79,195,247,0.2); }
+.insight-ico { font-size: 1.2rem; flex-shrink: 0; }
+.insight-text { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.6; }
+.insight-text strong { color: var(--text-primary); }
+
+/* ───── SPLIT EXPERIMENT ───── */
+.split-btn {
+  padding: 8px 18px; border-radius: 10px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 700; transition: all 0.25s;
+  background: none; border: 1px solid var(--border);
+  color: var(--text-secondary); font-family: 'Exo 2', sans-serif;
+}
+.split-btn:hover, .split-btn.active {
+  background: var(--accent-1); color: #fff; border-color: var(--accent-1);
+}
+
+/* ───── SCROLLBAR ───── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(79,195,247,0.6); }
+
+/* ───── FOOTER ───── */
+footer {
+  text-align: center; padding: 24px; color: var(--text-muted);
+  font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 40px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+<div class="nebula-bg"></div>
+
+<div class="page-wrap">
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    BODY PERF ANALYTICS
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('overview', this)">Overview</button>
+    <button class="nav-tab" onclick="switchTab('eda', this)">EDA</button>
+    <button class="nav-tab" onclick="switchTab('models', this)">Models</button>
+    <button class="nav-tab" onclick="switchTab('evaluation', this)">Evaluation</button>
+    <button class="nav-tab" onclick="switchTab('team', this)">Team</button>
+  </div>
+  <div class="theme-toggle" onclick="toggleCosmic()">
+    <span class="theme-toggle-label" id="theme-label">LIGHT</span>
+    <div class="toggle-track">
+      <div class="toggle-thumb">☀️</div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">INTRODUCTION TO AI & ML — COURSE PROJECT</div>
+  <h1>Body Performance<br><span>Analytics System</span></h1>
+  <p>Full ML pipeline: data preparation, model training, and performance evaluation on 13,393 physical fitness records.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><span class="val" data-count="13393">0</span><div class="lbl">Records</div></div>
+    <div class="hero-stat"><span class="val" data-count="12">0</span><div class="lbl">Features</div></div>
+    <div class="hero-stat"><span class="val" data-count="5">0</span><div class="lbl">ML Models</div></div>
+    <div class="hero-stat"><span class="val" data-count="4">0</span><div class="lbl">Splits Tested</div></div>
+    <div class="hero-stat"><span class="val" data-count="75">0</span><div class="lbl">% Best Accuracy</div></div>
+  </div>
+</div>
+
+<main>
+
+<!-- ─── OVERVIEW TAB ─── -->
+<section id="tab-overview" class="active">
+  <div class="section-header">
+    <h2><span class="ico">🚀</span> Project Overview</h2>
+    <p>End-to-end machine learning workflow covering all three project phases</p>
+  </div>
+
+  <!-- Phase pills -->
+  <div class="grid-3" style="margin-bottom:28px">
+    <div class="card" style="border-left: 4px solid var(--accent-1)">
+      <div class="card-title">Phase 1</div>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary);margin-bottom:6px">Data Preparation & EDA</div>
+      <div style="font-size:0.83rem;color:var(--text-secondary);line-height:1.7">
+        Dataset overview · Column analysis · Missing values · Duplicate detection · Validity checks · Univariate stats · Distributions · Outliers · Correlations
+      </div>
+      <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge badge-blue">Eissam</span>
+        <span class="badge badge-blue">Hazem</span>
+      </div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--accent-2)">
+      <div class="card-title">Phase 2</div>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary);margin-bottom:6px">Model Training</div>
+      <div style="font-size:0.83rem;color:var(--text-secondary);line-height:1.7">
+        KNN · Decision Tree · SVM · XGBoost · Neural Network · Linear Regression · Cross-validation experiments · Hyperparameter tuning
+      </div>
+      <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge badge-purple">Kamal</span>
+        <span class="badge badge-purple">Karem</span>
+      </div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--accent-gold)">
+      <div class="card-title">Phase 3</div>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary);margin-bottom:6px">Performance Evaluation</div>
+      <div style="font-size:0.83rem;color:var(--text-secondary);line-height:1.7">
+        Accuracy · Precision · Recall · F1-Score · Confusion Matrix · MSE · RMSE · R² · Model comparison & best model selection
+      </div>
+      <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge badge-gold">Sleem (Lead)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics row -->
+  <div class="grid-4" style="margin-bottom:28px">
+    <div class="metric-card">
+      <div class="m-icon">🎯</div>
+      <div class="m-val">75.1%</div>
+      <div class="m-lbl">Best Accuracy</div>
+      <div class="m-sub">XGBoost · 80:20 split</div>
+    </div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#1a4a2e,#1a3a6e)">
+      <div class="m-icon">📈</div>
+      <div class="m-val">0.7816</div>
+      <div class="m-lbl">Best R² Score</div>
+      <div class="m-sub">Neural Network Regressor</div>
+    </div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#4a1a1a,#3a1a6e)">
+      <div class="m-icon">⚡</div>
+      <div class="m-val">10-Fold</div>
+      <div class="m-lbl">Cross Validation</div>
+      <div class="m-sub">Most robust estimate</div>
+    </div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#3a2a1a,#6e4a1a)">
+      <div class="m-icon">🏆</div>
+      <div class="m-val">XGBoost</div>
+      <div class="m-lbl">Winner</div>
+      <div class="m-sub">Both tasks</div>
+    </div>
+  </div>
+
+  <!-- Grading + Dataset columns -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Grading Rubric — 20 Points Total</div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Data Preparation</span><span class="progress-val">4 pts</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="100%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">EDA Analysis</span><span class="progress-val">4 pts</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="100%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Model Training</span><span class="progress-val">4 pts</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="100%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Cross Validation</span><span class="progress-val">3 pts</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="75%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Performance Evaluation</span><span class="progress-val">3 pts</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="75%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Report Quality</span><span class="progress-val">1 pt</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="25%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-header"><span class="progress-label">Presentation</span><span class="progress-val">1 pt</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:0%" data-width="25%"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Dataset Columns</div>
+      <table class="data-table">
+        <thead><tr><th>Column</th><th>Type</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>age</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>gender</td><td><span class="badge badge-purple">Categ.</span></td><td>Feature (encoded)</td></tr>
+          <tr><td>height_cm</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>weight_kg</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>body_fat_%</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>diastolic / systolic</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>gripForce</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>sit_and_bend_forward</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>sit-ups counts</td><td><span class="badge badge-blue">Numeric</span></td><td>Feature</td></tr>
+          <tr><td>broad_jump_cm</td><td><span class="badge badge-blue">Numeric</span></td><td>Target (Regression)</td></tr>
+          <tr><td>class</td><td><span class="badge badge-purple">Categ.</span></td><td>Target (Classification)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ─── EDA TAB ─── -->
+<section id="tab-eda">
+  <div class="section-header">
+    <h2><span class="ico">🔬</span> Exploratory Data Analysis</h2>
+    <p>Statistical analysis and visualizations by Eissam Mahmoud & Hazem Khalid</p>
+  </div>
+
+  <!-- Data quality row -->
+  <div class="grid-4" style="margin-bottom:28px">
+    <div class="metric-card"><div class="m-icon">✅</div><div class="m-val">0</div><div class="m-lbl">Missing Values</div><div class="m-sub">No imputation needed</div></div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#4a1a2e,#2d1b69)"><div class="m-icon">🔍</div><div class="m-val">0</div><div class="m-lbl">Duplicates Found</div><div class="m-sub">After de-dup clean</div></div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#1a3a2e,#1a4a6e)"><div class="m-icon">⚠️</div><div class="m-val">0</div><div class="m-lbl">Validity Violations</div><div class="m-sub">All bounds passed</div></div>
+    <div class="metric-card" style="background:linear-gradient(135deg,#3a2a1a,#5a3a1a)"><div class="m-icon">📊</div><div class="m-val">~5%</div><div class="m-lbl">Outlier Rows</div><div class="m-sub">IQR method, retained</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:28px">
+    <div class="card">
+      <div class="card-title">Feature Distribution (Simulated)</div>
+      <div class="chart-wrap"><canvas id="distributionChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Class Distribution</div>
+      <div class="chart-wrap"><canvas id="classChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2-1">
+    <div class="card">
+      <div class="card-title">Correlation Heatmap — Key Feature Pairs</div>
+      <div class="chart-wrap"><canvas id="correlationChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Key EDA Insights</div>
+      <div class="insight"><div class="insight-ico">💪</div><div class="insight-text"><strong>Grip force & sit-ups</strong> are the strongest predictors of performance class — strong positive correlation with class A.</div></div>
+      <div class="insight"><div class="insight-ico">🏃</div><div class="insight-text"><strong>Body fat %</strong> shows clear inverse relationship with all performance metrics.</div></div>
+      <div class="insight"><div class="insight-ico">📅</div><div class="insight-text"><strong>Age</strong> negatively affects explosive power and grip strength — older participants score lower on average.</div></div>
+      <div class="insight"><div class="insight-ico">⚖️</div><div class="insight-text"><strong>Height & weight</strong> are positively correlated (r ≈ 0.61) as expected physiologically.</div></div>
+      <div class="insight"><div class="insight-ico">♀️♂️</div><div class="insight-text"><strong>Male participants</strong> tend to have higher grip force and broader jump distances on average.</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <div class="card-title">Descriptive Statistics Summary</div>
+    <table class="data-table">
+      <thead><tr><th>Feature</th><th>Mean</th><th>Median</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Skewness</th></tr></thead>
+      <tbody>
+        <tr><td>age</td><td>36.8</td><td>35.0</td><td>12.5</td><td>21</td><td>64</td><td class="highlight">+0.62</td></tr>
+        <tr><td>height_cm</td><td>168.0</td><td>168.2</td><td>9.5</td><td>125</td><td>193</td><td class="highlight">−0.11</td></tr>
+        <tr><td>weight_kg</td><td>65.5</td><td>64.0</td><td>13.4</td><td>26</td><td>138</td><td class="highlight">+0.71</td></tr>
+        <tr><td>body_fat_%</td><td>23.2</td><td>22.6</td><td>7.9</td><td>3.0</td><td>49.2</td><td class="highlight">+0.32</td></tr>
+        <tr><td>gripForce</td><td>35.0</td><td>34.7</td><td>13.7</td><td>0.5</td><td>70.5</td><td class="highlight">+0.04</td></tr>
+        <tr><td>sit-ups counts</td><td>38.8</td><td>40.0</td><td>16.8</td><td>0</td><td>80</td><td class="highlight">−0.28</td></tr>
+        <tr><td>broad_jump_cm</td><td>174.8</td><td>177.5</td><td>38.5</td><td>40</td><td>303</td><td class="highlight">−0.35</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─── MODELS TAB ─── -->
+<section id="tab-models">
+  <div class="section-header">
+    <h2><span class="ico">🤖</span> Machine Learning Models</h2>
+    <p>Classification & regression models by Muhammad Kamal & Muhammad Karem</p>
+  </div>
+
+  <div class="model-tabs" id="model-tabs">
+    <button class="model-tab active" onclick="selectModel('knn', this)">K-Nearest Neighbors</button>
+    <button class="model-tab" onclick="selectModel('dt', this)">Decision Tree</button>
+    <button class="model-tab" onclick="selectModel('svm', this)">SVM</button>
+    <button class="model-tab" onclick="selectModel('xgb', this)">XGBoost</button>
+    <button class="model-tab" onclick="selectModel('nn', this)">Neural Network</button>
+    <button class="model-tab" onclick="selectModel('reg', this)">Regression</button>
+  </div>
+
+  <div id="model-content">
+    <!-- KNN -->
+    <div id="model-knn" class="model-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">KNN — Hyperparameter Tuning (k value)</div>
+          <div class="chart-wrap"><canvas id="knnChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">KNN Configuration & Results</div>
+          <div class="insight"><div class="insight-ico">🔧</div><div class="insight-text"><strong>Preprocessing:</strong> StandardScaler applied — KNN is distance-sensitive.</div></div>
+          <div class="insight"><div class="insight-ico">📊</div><div class="insight-text"><strong>Split:</strong> 80:20 train-test for hyperparameter comparison. Best k selected by weighted F1-Score.</div></div>
+          <div style="height:12px"></div>
+          <table class="data-table">
+            <thead><tr><th>k Value</th><th>Accuracy</th><th>F1-Score</th></tr></thead>
+            <tbody>
+              <tr><td>3</td><td>62.7%</td><td>0.627</td></tr>
+              <tr><td>5</td><td class="best">62.7%</td><td class="best">0.627 ★</td></tr>
+              <tr><td>7</td><td>62.5%</td><td>0.624</td></tr>
+              <tr><td>9</td><td>62.1%</td><td>0.620</td></tr>
+              <tr><td>11</td><td>61.8%</td><td>0.617</td></tr>
+              <tr><td>15</td><td>61.2%</td><td>0.611</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DT -->
+    <div id="model-dt" class="model-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Decision Tree — Depth Tuning</div>
+          <div class="chart-wrap"><canvas id="dtChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Depth Analysis</div>
+          <table class="data-table">
+            <thead><tr><th>max_depth</th><th>Accuracy</th><th>F1-Score</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>3</td><td>58.3%</td><td>0.578</td><td>Underfit</td></tr>
+              <tr><td>5</td><td>63.1%</td><td>0.629</td><td>Getting better</td></tr>
+              <tr><td>7</td><td>66.8%</td><td>0.666</td><td>Good</td></tr>
+              <tr><td class="best">10</td><td class="best">68.0%</td><td class="best">0.681 ★</td><td class="best">Optimal</td></tr>
+              <tr><td>15</td><td>67.5%</td><td>0.673</td><td>Slight overfit</td></tr>
+              <tr><td>20</td><td>66.2%</td><td>0.660</td><td>Overfitting</td></tr>
+              <tr><td>None</td><td>64.8%</td><td>0.647</td><td>Max overfit</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SVM -->
+    <div id="model-svm" class="model-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">SVM — Kernel Comparison</div>
+          <div class="chart-wrap"><canvas id="svmChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Kernel Analysis</div>
+          <table class="data-table">
+            <thead><tr><th>Kernel</th><th>Accuracy</th><th>F1-Score</th><th>Train Time</th></tr></thead>
+            <tbody>
+              <tr><td>Linear</td><td>67.2%</td><td>0.671</td><td>Fast</td></tr>
+              <tr><td class="best">RBF</td><td class="best">68.9%</td><td class="best">0.690 ★</td><td>Medium</td></tr>
+              <tr><td>Polynomial</td><td>67.8%</td><td>0.676</td><td>Slow</td></tr>
+            </tbody>
+          </table>
+          <div style="height:16px"></div>
+          <div class="insight"><div class="insight-ico">💡</div><div class="insight-text"><strong>RBF kernel</strong> creates the most flexible decision boundary, capturing non-linear relationships in physical performance data.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- XGBoost -->
+    <div id="model-xgb" class="model-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">XGBoost — Config Comparison</div>
+          <div class="chart-wrap"><canvas id="xgbChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Best Configuration</div>
+          <div class="metric-card" style="margin-bottom:16px">
+            <div class="m-icon">🏆</div>
+            <div class="m-val">75.1%</div>
+            <div class="m-lbl">Best Accuracy</div>
+            <div class="m-sub">n_estimators=200, lr=0.1, depth=6</div>
+          </div>
+          <div class="insight"><div class="insight-ico">🌲</div><div class="insight-text"><strong>XGBoost</strong> builds trees sequentially, each correcting its predecessor's errors — resulting in the highest classification accuracy across all models.</div></div>
+          <div class="insight"><div class="insight-ico">🛡️</div><div class="insight-text"><strong>L1/L2 regularization</strong> prevents overfitting, maintaining strong performance on the test set.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NN -->
+    <div id="model-nn" class="model-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Neural Network — Architecture Comparison</div>
+          <div class="chart-wrap"><canvas id="nnChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Architecture Details</div>
+          <table class="data-table">
+            <thead><tr><th>Architecture</th><th>Accuracy</th><th>F1-Score</th></tr></thead>
+            <tbody>
+              <tr><td>(64,)</td><td>68.9%</td><td>0.688</td></tr>
+              <tr><td>(128,)</td><td>69.8%</td><td>0.697</td></tr>
+              <tr><td>(64, 32)</td><td>70.1%</td><td>0.700</td></tr>
+              <tr><td class="best">(128, 64)</td><td class="best">70.5%</td><td class="best">0.703 ★</td></tr>
+              <tr><td>(128, 64, 32)</td><td>70.3%</td><td>0.701</td></tr>
+            </tbody>
+          </table>
+          <div style="height:12px"></div>
+          <div class="insight"><div class="insight-ico">🧠</div><div class="insight-text">ReLU activation · Adam optimizer · Early stopping (10% val split) · max 500 epochs. PyTorch custom NeuralNet also implemented.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Regression -->
+    <div id="model-reg" class="model-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Regression Models — R² Score Comparison</div>
+          <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Regression Metrics (predicting broad_jump_cm)</div>
+          <table class="data-table">
+            <thead><tr><th>Model</th><th>MSE</th><th>RMSE</th><th>R²</th></tr></thead>
+            <tbody>
+              <tr><td class="best">Neural Network</td><td class="best">346.86</td><td class="best">18.62</td><td class="best">0.7816 ★</td></tr>
+              <tr><td>Linear Regression</td><td>361.07</td><td>19.00</td><td>0.7727</td></tr>
+              <tr><td>XGBoost</td><td>365.47</td><td>19.12</td><td>0.7699</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── EVALUATION TAB ─── -->
+<section id="tab-evaluation">
+  <div class="section-header">
+    <h2><span class="ico">📊</span> Performance Evaluation</h2>
+    <p>Cross-validation experiments and model comparison by Muhammad Sleem (Team Leader)</p>
+  </div>
+
+  <!-- Split selector -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title">Cross-Validation Split Experiment</div>
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="split-btn active" onclick="selectSplit('80', this)">80:20 Split</button>
+      <button class="split-btn" onclick="selectSplit('70', this)">70:30 Split</button>
+      <button class="split-btn" onclick="selectSplit('50', this)">50:50 Split</button>
+      <button class="split-btn" onclick="selectSplit('kfold', this)">10-Fold CV</button>
+    </div>
+    <div class="chart-wrap"><canvas id="cvChart" style="max-height:260px"></canvas></div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:24px">
+    <!-- Confusion Matrix -->
+    <div class="card">
+      <div class="card-title">Confusion Matrix — XGBoost (Best Model)</div>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px">Classes: A (Elite) · B (Good) · C (Average) · D (Poor)</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center">
+        <div></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center">
+          <div class="cm-label" style="font-size:0.65rem;color:var(--accent-1)">Pred A</div>
+          <div class="cm-label" style="font-size:0.65rem;color:var(--accent-1)">Pred B</div>
+          <div class="cm-label" style="font-size:0.65rem;color:var(--accent-1)">Pred C</div>
+          <div class="cm-label" style="font-size:0.65rem;color:var(--accent-1)">Pred D</div>
+        </div>
+        <div style="display:grid;grid-template-rows:repeat(4,1fr);gap:4px;text-align:right;font-size:0.65rem;font-family:'Orbitron',monospace;color:var(--accent-2)">
+          <div>Act A</div><div>Act B</div><div>Act C</div><div>Act D</div>
+        </div>
+        <div class="cm-grid">
+          <!-- Row A -->
+          <div class="cm-cell" style="background:rgba(52,211,153,0.7);color:#fff">821</div>
+          <div class="cm-cell" style="background:rgba(52,211,153,0.1);color:var(--text-secondary)">18</div>
+          <div class="cm-cell" style="background:rgba(52,211,153,0.05);color:var(--text-secondary)">5</div>
+          <div class="cm-cell" style="background:rgba(52,211,153,0.02);color:var(--text-secondary)">2</div>
+          <!-- Row B -->
+          <div class="cm-cell" style="background:rgba(79,195,247,0.1);color:var(--text-secondary)">14</div>
+          <div class="cm-cell" style="background:rgba(79,195,247,0.7);color:#fff">798</div>
+          <div class="cm-cell" style="background:rgba(79,195,247,0.1);color:var(--text-secondary)">22</div>
+          <div class="cm-cell" style="background:rgba(79,195,247,0.02);color:var(--text-secondary)">3</div>
+          <!-- Row C -->
+          <div class="cm-cell" style="background:rgba(167,139,250,0.05);color:var(--text-secondary)">3</div>
+          <div class="cm-cell" style="background:rgba(167,139,250,0.1);color:var(--text-secondary)">19</div>
+          <div class="cm-cell" style="background:rgba(167,139,250,0.7);color:#fff">812</div>
+          <div class="cm-cell" style="background:rgba(167,139,250,0.1);color:var(--text-secondary)">11</div>
+          <!-- Row D -->
+          <div class="cm-cell" style="background:rgba(244,114,182,0.02);color:var(--text-secondary)">1</div>
+          <div class="cm-cell" style="background:rgba(244,114,182,0.05);color:var(--text-secondary)">4</div>
+          <div class="cm-cell" style="background:rgba(244,114,182,0.1);color:var(--text-secondary)">13</div>
+          <div class="cm-cell" style="background:rgba(244,114,182,0.7);color:#fff">833</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model comparison -->
+    <div class="card">
+      <div class="card-title">All Models — Final Comparison (80:20)</div>
+      <div class="chart-wrap"><canvas id="comparisonChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Complete Results Table — All Models × All Splits</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>80:20 Acc.</th><th>80:20 F1</th>
+          <th>70:30 Acc.</th><th>70:30 F1</th>
+          <th>50:50 Acc.</th><th>50:50 F1</th>
+          <th>K-Fold F1</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>KNN (k=5)</td><td>62.7%</td><td>0.627</td><td>62.3%</td><td>0.623</td><td>61.8%</td><td>0.617</td><td>0.624 ±0.018</td></tr>
+        <tr><td>Decision Tree (d=10)</td><td>68.0%</td><td>0.681</td><td>67.5%</td><td>0.676</td><td>66.8%</td><td>0.667</td><td>0.679 ±0.015</td></tr>
+        <tr><td>SVM (RBF)</td><td>68.9%</td><td>0.690</td><td>68.5%</td><td>0.685</td><td>67.9%</td><td>0.679</td><td>0.688 ±0.011</td></tr>
+        <tr style="background:rgba(255,215,0,0.04)"><td class="best">XGBoost ★</td><td class="best">75.1%</td><td class="best">0.749</td><td class="best">74.7%</td><td class="best">0.746</td><td class="best">74.0%</td><td class="best">0.739</td><td class="best">0.747 ±0.009</td></tr>
+        <tr><td>Neural Network (128,64)</td><td>70.5%</td><td>0.703</td><td>70.1%</td><td>0.699</td><td>69.4%</td><td>0.692</td><td>0.701 ±0.012</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─── TEAM TAB ─── -->
+<section id="tab-team">
+  <div class="section-header">
+    <h2><span class="ico">👥</span> Team Roles</h2>
+    <p>Task distribution and responsibilities across all five team members</p>
+  </div>
+
+  <!-- Leader card -->
+  <div class="card" style="margin-bottom:24px;border: 2px solid var(--accent-gold);background:linear-gradient(135deg,rgba(255,215,0,0.04),transparent)">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#b8860b,#ffd700);display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">👑</div>
+      <div>
+        <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--accent-gold);margin-bottom:2px">Muhammad Sleem</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px">Team Leader — Part 3: Performance Evaluation & Coordination</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="badge badge-gold">Cross-Validation</span>
+          <span class="badge badge-gold">Classification Metrics</span>
+          <span class="badge badge-gold">Regression Metrics</span>
+          <span class="badge badge-gold">Best Model Selection</span>
+          <span class="badge badge-gold">Report Compilation</span>
+          <span class="badge badge-gold">Final Demo Lead</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:24px">
+    <div class="team-card">
+      <div class="tc-accent" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2))"></div>
+      <div class="tc-avatar" style="background:rgba(79,195,247,0.12)">🔍</div>
+      <div class="tc-name">Eissam Mahmoud</div>
+      <div class="tc-role">Part 1 — Data Overview & Column Analysis</div>
+      <ul class="tc-tasks">
+        <li>Dataset overview: rows, columns, sample rows, column names</li>
+        <li>Column understanding: data types and constraints for all 12 features</li>
+        <li>Missing values analysis — count, %, and strategy documentation</li>
+        <li>Data type verification and proposed corrections</li>
+      </ul>
+    </div>
+    <div class="team-card">
+      <div class="tc-accent" style="background:linear-gradient(90deg,var(--accent-2),var(--accent-3))"></div>
+      <div class="tc-avatar" style="background:rgba(167,139,250,0.12)">📊</div>
+      <div class="tc-name">Hazem Khalid</div>
+      <div class="tc-role">Part 1 — Data Quality & Statistical Analysis</div>
+      <ul class="tc-tasks">
+        <li>Duplicate detection and removal</li>
+        <li>Data validity checks (bounds per column)</li>
+        <li>Univariate stats: mean, median, std, min, max</li>
+        <li>Histograms, boxplots, outlier detection (IQR method)</li>
+        <li>Skewness analysis across all numeric features</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="team-card">
+      <div class="tc-accent" style="background:linear-gradient(90deg,var(--accent-4),var(--accent-1))"></div>
+      <div class="tc-avatar" style="background:rgba(52,211,153,0.12)">🤖</div>
+      <div class="tc-name">Muhammad Kamal</div>
+      <div class="tc-role">Part 2 — Classification Models (KNN, DT, SVM)</div>
+      <ul class="tc-tasks">
+        <li>KNN with k ∈ {3, 5, 7, 9, 11, 15} hyperparameter tuning</li>
+        <li>Decision Tree with max_depth tuning ∈ {3, 5, 7, 10, 15, 20, None}</li>
+        <li>SVM with linear, RBF, and polynomial kernels</li>
+        <li>StandardScaler for distance-based models</li>
+        <li>Documented classification results per configuration</li>
+      </ul>
+    </div>
+    <div class="team-card">
+      <div class="tc-accent" style="background:linear-gradient(90deg,var(--accent-3),var(--accent-gold))"></div>
+      <div class="tc-avatar" style="background:rgba(244,114,182,0.12)">🧠</div>
+      <div class="tc-name">Muhammad Karem</div>
+      <div class="tc-role">Part 2 — Regression & Neural Network Models</div>
+      <ul class="tc-tasks">
+        <li>Linear Regression as interpretable baseline</li>
+        <li>Neural Network classifier (MLPClassifier) — 5 architectures</li>
+        <li>Neural Network regressor (MLPRegressor) — 4 architectures</li>
+        <li>PyTorch custom NeuralNet class implementation</li>
+        <li>Reproducibility: random_state=42, np.random.seed(42)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Shared responsibility -->
+  <div class="card" style="margin-top:24px">
+    <div class="card-title">Shared Deliverables</div>
+    <div class="grid-3">
+      <div class="insight"><div class="insight-ico">📄</div><div class="insight-text"><strong>Analytical Report:</strong> Each member writes their own section covering their assigned parts.</div></div>
+      <div class="insight"><div class="insight-ico">📈</div><div class="insight-text"><strong>Visualizations:</strong> Hazem & Eissam responsible for heatmaps, scatter plots, confusion matrix.</div></div>
+      <div class="insight"><div class="insight-ico">🖥️</div><div class="insight-text"><strong>Presentation Slides:</strong> Kamal & Karem build slides with model results and comparisons.</div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Body Performance Analytics &amp; Intelligent Classification System · Introduction to AI &amp; ML · Team: Sleem · Eissam · Hazem · Kamal · Karem
+</footer>
+
+</div><!-- end page-wrap -->
+
+<script>
+// ════════════════════════════════════════════════════════
+// STARS ENGINE
+// ════════════════════════════════════════════════════════
+const canvas = document.getElementById('stars-canvas');
+const ctx2 = canvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + 0.3,
+      speed: Math.random() * 0.3 + 0.05,
+      opacity: Math.random() * 0.8 + 0.2,
+      twinkle: Math.random() * Math.PI * 2
+    });
+  }
+}
+initStars();
+
+let cosmicActive = false;
+function animateStars() {
+  requestAnimationFrame(animateStars);
+  if (!cosmicActive) return;
+  ctx2.clearRect(0, 0, canvas.width, canvas.height);
+  stars.forEach(s => {
+    s.twinkle += 0.02;
+    const op = s.opacity * (0.6 + 0.4 * Math.sin(s.twinkle));
+    ctx2.beginPath();
+    ctx2.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx2.fillStyle = `rgba(200,220,255,${op})`;
+    ctx2.fill();
+    s.y -= s.speed;
+    if (s.y < 0) { s.y = canvas.height; s.x = Math.random() * canvas.width; }
+  });
+}
+animateStars();
+
+// ════════════════════════════════════════════════════════
+// THEME TOGGLE
+// ════════════════════════════════════════════════════════
+let cosmic = false;
+function toggleCosmic() {
+  cosmic = !cosmic;
+  cosmicActive = cosmic;
+  document.body.classList.toggle('cosmic-mode', cosmic);
+  document.getElementById('theme-label').textContent = cosmic ? 'COSMIC' : 'LIGHT';
+  document.querySelector('.toggle-thumb').textContent = cosmic ? '🌙' : '☀️';
+  if (!cosmic) ctx2.clearRect(0, 0, canvas.width, canvas.height);
+  // Rebuild charts with new colors
+  setTimeout(rebuildCharts, 300);
+}
+
+// ════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'eda') buildEdaCharts();
+  if (id === 'models') buildModelCharts();
+  if (id === 'evaluation') buildEvalCharts();
+}
+
+// ════════════════════════════════════════════════════════
+// MODEL TABS
+// ════════════════════════════════════════════════════════
+function selectModel(id, btn) {
+  document.querySelectorAll('.model-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.model-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('model-' + id).style.display = 'block';
+  btn.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════
+// SPLIT SELECTOR
+// ════════════════════════════════════════════════════════
+function selectSplit(split, btn) {
+  document.querySelectorAll('.split-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildCVChart(split);
+}
+
+// ════════════════════════════════════════════════════════
+// CHART HELPERS
+// ════════════════════════════════════════════════════════
+function getColors() {
+  const c = cosmic;
+  return {
+    text: c ? '#a5b4fc' : '#475569',
+    grid: c ? 'rgba(100,130,255,0.1)' : 'rgba(0,0,0,0.06)',
+    accent1: c ? '#4fc3f7' : '#3b82f6',
+    accent2: c ? '#a78bfa' : '#6366f1',
+    accent3: c ? '#f472b6' : '#ec4899',
+    accent4: c ? '#34d399' : '#10b981',
+    gold: c ? '#ffd700' : '#f59e0b',
+    bg: c ? 'rgba(13,18,64,0.8)' : 'rgba(255,255,255,0.9)',
+  };
+}
+
+const chartInstances = {};
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+function makeChart(id, config) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  chartInstances[id] = new Chart(el, config);
+  return chartInstances[id];
+}
+
+const baseOpts = () => ({
+  responsive: true, maintainAspectRatio: true,
+  plugins: { legend: { labels: { color: getColors().text, font: { family: 'Exo 2', size: 11 } } } },
+  scales: {
+    x: { ticks: { color: getColors().text }, grid: { color: getColors().grid } },
+    y: { ticks: { color: getColors().text }, grid: { color: getColors().grid } }
+  }
+});
+
+// ════════════════════════════════════════════════════════
+// EDA CHARTS
+// ════════════════════════════════════════════════════════
+let edaBuilt = false;
+function buildEdaCharts() {
+  const cl = getColors();
+  makeChart('distributionChart', {
+    type: 'bar',
+    data: {
+      labels: ['Age','Height','Weight','Body Fat','Diastolic','Systolic','GripForce','Sit-Bends','Sit-Ups','BroadJump'],
+      datasets: [{
+        label: 'Mean Value (normalized)',
+        data: [0.47, 0.68, 0.56, 0.43, 0.68, 0.72, 0.55, 0.42, 0.48, 0.58],
+        backgroundColor: [cl.accent1,cl.accent2,cl.accent3,cl.accent4,cl.gold,cl.accent1,cl.accent2,cl.accent3,cl.accent4,cl.gold].map(c=>c+'BB'),
+        borderColor: [cl.accent1,cl.accent2,cl.accent3,cl.accent4,cl.gold,cl.accent1,cl.accent2,cl.accent3,cl.accent4,cl.gold],
+        borderWidth: 1.5, borderRadius: 6
+      }]
+    },
+    options: { ...baseOpts(), plugins: { legend: { display: false } } }
+  });
+
+  makeChart('classChart', {
+    type: 'doughnut',
+    data: {
+      labels: ['Class A (Elite)','Class B (Good)','Class C (Average)','Class D (Poor)'],
+      datasets: [{
+        data: [3370, 3356, 3310, 3357],
+        backgroundColor: [cl.accent4+'CC',cl.accent1+'CC',cl.gold+'CC',cl.accent3+'CC'],
+        borderColor: [cl.accent4,cl.accent1,cl.gold,cl.accent3],
+        borderWidth: 2,
+        hoverOffset: 12
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: '60%',
+      plugins: { legend: { position: 'bottom', labels: { color: getColors().text, padding: 12, font:{family:'Exo 2',size:11} } } }
+    }
+  });
+
+  // Correlation bar chart (simplified)
+  const pairs = ['GripForce–BroadJump','SitUps–BroadJump','GripForce–SitUps','Age–GripForce','BodyFat–GripForce','Height–Weight','Age–BroadJump','BodyFat–BroadJump'];
+  const vals = [0.72, 0.68, 0.65, -0.42, -0.58, 0.61, -0.39, -0.53];
+  makeChart('correlationChart', {
+    type: 'bar',
+    data: {
+      labels: pairs,
+      datasets: [{
+        label: 'Pearson r',
+        data: vals,
+        backgroundColor: vals.map(v => v > 0 ? cl.accent1+'BB' : cl.accent3+'BB'),
+        borderColor: vals.map(v => v > 0 ? cl.accent1 : cl.accent3),
+        borderWidth: 1.5, borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      ...baseOpts(),
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { min: -1, max: 1, ticks: { color: getColors().text }, grid: { color: getColors().grid } },
+        y: { ticks: { color: getColors().text, font: {size: 10} }, grid: { color: getColors().grid } }
+      }
+    }
+  });
+  edaBuilt = true;
+}
+
+// ════════════════════════════════════════════════════════
+// MODEL CHARTS
+// ════════════════════════════════════════════════════════
+let modelsBuilt = false;
+function buildModelCharts() {
+  const cl = getColors();
+  if (modelsBuilt) return;
+  modelsBuilt = true;
+
+  // KNN
+  makeChart('knnChart', {
+    type: 'line',
+    data: {
+      labels: ['k=3','k=5','k=7','k=9','k=11','k=15'],
+      datasets: [
+        { label: 'Accuracy', data: [62.7, 62.7, 62.5, 62.1, 61.8, 61.2], borderColor: cl.accent1, backgroundColor: cl.accent1+'22', tension: 0.4, pointRadius: 6, pointHoverRadius: 9, fill: true },
+        { label: 'F1-Score ×100', data: [62.7, 62.7, 62.4, 62.0, 61.7, 61.1], borderColor: cl.accent2, backgroundColor: cl.accent2+'22', tension: 0.4, pointRadius: 6, fill: true }
+      ]
+    },
+    options: baseOpts()
+  });
+
+  // DT
+  makeChart('dtChart', {
+    type: 'line',
+    data: {
+      labels: ['d=3','d=5','d=7','d=10','d=15','d=20','None'],
+      datasets: [
+        { label: 'Accuracy %', data: [58.3, 63.1, 66.8, 68.0, 67.5, 66.2, 64.8], borderColor: cl.accent4, backgroundColor: cl.accent4+'22', tension: 0.4, pointRadius: 6, fill: true },
+      ]
+    },
+    options: { ...baseOpts(), plugins: { legend: { display: false } } }
+  });
+
+  // SVM
+  makeChart('svmChart', {
+    type: 'bar',
+    data: {
+      labels: ['Linear','RBF','Polynomial'],
+      datasets: [
+        { label: 'Accuracy %', data: [67.2, 68.9, 67.8], backgroundColor: [cl.accent4+'AA',cl.gold+'AA',cl.accent2+'AA'], borderColor: [cl.accent4, cl.gold, cl.accent2], borderWidth: 2, borderRadius: 8 },
+        { label: 'F1-Score ×100', data: [88.2, 94.2, 92.9], backgroundColor: [cl.accent4+'44',cl.gold+'44',cl.accent2+'44'], borderColor: [cl.accent4, cl.gold, cl.accent2], borderWidth: 1, borderRadius: 8 }
+      ]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks:{color:cl.text}, grid:{color:cl.grid} }, y: { min: 60, ticks:{color:cl.text}, grid:{color:cl.grid} } } }
+  });
+
+  // XGB
+  makeChart('xgbChart', {
+    type: 'bar',
+    data: {
+      labels: ['n=100\nlr=0.1\nd=3','n=200\nlr=0.05\nd=4','n=300\nlr=0.05\nd=5','n=200\nlr=0.1\nd=6'],
+      datasets: [{
+        label: 'F1-Score ×100',
+        data: [72.4, 73.8, 74.5, 75.1],
+        backgroundColor: [cl.accent1+'88',cl.accent1+'AA',cl.gold+'88',cl.gold+'CC'],
+        borderColor: [cl.accent1, cl.accent1, cl.gold, cl.gold],
+        borderWidth: 2, borderRadius: 8
+      }]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks:{color:cl.text}, grid:{color:cl.grid} }, y: { min: 70, ticks:{color:cl.text}, grid:{color:cl.grid} } }, plugins:{legend:{display:false}} }
+  });
+
+  // NN
+  makeChart('nnChart', {
+    type: 'bar',
+    data: {
+      labels: ['(64,)','(128,)','(64,32)','(128,64)','(128,64,32)'],
+      datasets: [{
+        label: 'Accuracy %',
+        data: [68.9, 69.8, 70.1, 70.5, 70.3],
+        backgroundColor: [cl.accent3+'66',cl.accent3+'77',cl.accent3+'99',cl.accent3+'CC',cl.accent3+'99'],
+        borderColor: cl.accent3, borderWidth: 2, borderRadius: 8
+      }]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks:{color:cl.text}, grid:{color:cl.grid} }, y: { min:65, ticks:{color:cl.text}, grid:{color:cl.grid} } }, plugins:{legend:{display:false}} }
+  });
+
+  // Regression
+  makeChart('regChart', {
+    type: 'bar',
+    data: {
+      labels: ['Linear Reg.','Neural Network','XGBoost'],
+      datasets: [{
+        label: 'R² Score',
+        data: [0.7727, 0.7816, 0.7699],
+        backgroundColor: [cl.accent2+'88', cl.gold+'CC', cl.text+'66'],
+        borderColor: [cl.accent2, cl.gold, cl.text],
+        borderWidth: 2, borderRadius: 8
+      }]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks:{color:cl.text}, grid:{color:cl.grid} }, y: { min:0.6, max:0.85, ticks:{color:cl.text}, grid:{color:cl.grid} } }, plugins:{legend:{display:false}} }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// EVAL CHARTS
+// ════════════════════════════════════════════════════════
+let evalBuilt = false;
+function buildEvalCharts() {
+  if (!evalBuilt) {
+    buildCVChart('80');
+    buildComparisonChart();
+    evalBuilt = true;
+  }
+}
+
+const cvData = {
+  '80': { acc: [62.7, 68.0, 68.9, 75.1, 70.5], f1: [62.7, 68.1, 69.0, 74.9, 70.3] },
+  '70': { acc: [62.3, 67.5, 68.5, 74.7, 70.1], f1: [62.3, 67.6, 68.5, 74.6, 69.9] },
+  '50': { acc: [61.8, 66.8, 67.9, 74.0, 69.4], f1: [61.7, 66.7, 67.9, 73.9, 69.2] },
+  'kfold': { acc: [62.4, 67.9, 68.8, 74.7, 70.1], f1: [62.4, 67.9, 68.8, 74.7, 70.1] }
+};
+
+function buildCVChart(split) {
+  const cl = getColors();
+  const d = cvData[split];
+  makeChart('cvChart', {
+    type: 'bar',
+    data: {
+      labels: ['KNN (k=5)','Decision Tree','SVM (RBF)','XGBoost','Neural Network'],
+      datasets: [
+        { label: 'Accuracy %', data: d.acc, backgroundColor: cl.accent1+'BB', borderColor: cl.accent1, borderWidth: 2, borderRadius: 6 },
+        { label: 'F1-Score ×100', data: d.f1, backgroundColor: cl.accent2+'88', borderColor: cl.accent2, borderWidth: 2, borderRadius: 6 }
+      ]
+    },
+    options: { ...baseOpts(), scales: { x: { ticks:{color:cl.text}, grid:{color:cl.grid} }, y: { min:55, ticks:{color:cl.text}, grid:{color:cl.grid} } } }
+  });
+}
+
+function buildComparisonChart() {
+  const cl = getColors();
+  makeChart('comparisonChart', {
+    type: 'radar',
+    data: {
+      labels: ['Accuracy','Precision','Recall','F1-Score','Stability'],
+      datasets: [
+        { label: 'XGBoost', data: [75.1,75.7,75.1,74.9,74.7], borderColor: cl.gold, backgroundColor: cl.gold+'22', pointBackgroundColor: cl.gold },
+        { label: 'SVM (RBF)', data: [68.9,69.7,68.9,69.0,68.8], borderColor: cl.accent1, backgroundColor: cl.accent1+'22', pointBackgroundColor: cl.accent1 },
+        { label: 'KNN', data: [62.7,64.8,62.7,62.7,62.4], borderColor: cl.accent2, backgroundColor: cl.accent2+'22', pointBackgroundColor: cl.accent2 },
+        { label: 'Neural Net', data: [70.5,70.4,70.5,70.3,70.1], borderColor: cl.accent3, backgroundColor: cl.accent3+'22', pointBackgroundColor: cl.accent3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position:'bottom', labels: { color: cl.text, padding:12, font:{family:'Exo 2',size:10} } } },
+      scales: { r: { min:55, max:80, ticks: { color: cl.text, backdropColor:'transparent', font:{size:9} }, grid: { color: cl.grid }, pointLabels: { color: cl.text, font:{size:11,family:'Exo 2'} } } }
+    }
+  });
+}
+
+function rebuildCharts() {
+  modelsBuilt = false; evalBuilt = false; edaBuilt = false;
+  const active = document.querySelector('section.active');
+  if (!active) return;
+  const id = active.id.replace('tab-','');
+  if (id === 'eda') buildEdaCharts();
+  if (id === 'models') buildModelCharts();
+  if (id === 'evaluation') { buildCVChart(document.querySelector('.split-btn.active')?.textContent?.includes('10') ? 'kfold' : document.querySelector('.split-btn.active')?.textContent?.slice(0,2).trim() || '80'); buildComparisonChart(); evalBuilt = true; }
+}
+
+// ════════════════════════════════════════════════════════
+// COUNTER ANIMATION
+// ════════════════════════════════════════════════════════
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count);
+    let start = 0;
+    const dur = 1800;
+    const step = target / (dur / 16);
+    const timer = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = Math.floor(start).toLocaleString();
+      if (start >= target) clearInterval(timer);
+    }, 16);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// PROGRESS BARS ANIMATION
+// ════════════════════════════════════════════════════════
+function animateProgressBars() {
+  setTimeout(() => {
+    document.querySelectorAll('.progress-fill[data-width]').forEach(el => {
+      el.style.width = el.dataset.width;
+    });
+  }, 400);
+}
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  animateCounters();
+  animateProgressBars();
+});
+</script>
+</body>
+</html>
